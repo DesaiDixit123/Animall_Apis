@@ -11,7 +11,7 @@ const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use("/api/otp", otpRoutes);
+app.use("/api", otpRoutes);
 
 
 const PORT = process.env.PORT || 5000;

@@ -1,4 +1,5 @@
 import db from "../configs/db.js";
+
 export const updateUserProfile = (req, res) => {
   const { 
     user_id, name, language, address, whatsapp_no, phone_no, dob, 
@@ -7,92 +8,91 @@ export const updateUserProfile = (req, res) => {
 
   const profile_img = req.file ? req.file.path : null; // Cloudinary image URL
 
+  // Check for required fields
   if (!user_id || !name || !pashupalan_years || !banimall_usage || !animal_usage || !education) {
-    return res.status(200).json({ message: "Required fields are missing" , success:false });
+    return res.status(200).json({ message: "Required fields are missing", success: false });
   }
 
-  // Debugging: Check the received dob
-  console.log("Received dob:", dob);
+  console.log("Received dob:", dob); // Debugging: Check dob value
 
-  // Query to check if the user already exists with the same phone_no and dob
-  const checkQuery = `
-    SELECT * FROM users_profiles WHERE user_id = ? AND phone_no = ? AND dob = ?
-  `;
+  const checkQuery = `SELECT * FROM users WHERE id = ?`;
 
-  db.query(checkQuery, [user_id, phone_no, dob], (err, results) => {
+  db.query(checkQuery, [user_id], (err, results) => {
     if (err) return res.status(500).json({ message: "Database error", error: err });
 
-    // If user exists, update their profile
     if (results.length > 0) {
-      // Update the existing profile with new data
+      // 🔹 Update existing user profile
       const sql = `
-        UPDATE users_profiles 
+        UPDATE users 
         SET name = ?, language = ?, address = ?, whatsapp_no = ?, phone_no = ?, 
             pashupalan_years = ?, banimall_usage = ?, animal_usage = ?, education = ?, 
-            profile_img = COALESCE(?, profile_img) 
-        WHERE user_id = ? AND phone_no = ? AND dob = ?
+            dob = ?, profile_img = COALESCE(?, profile_img) 
+        WHERE id = ?
       `;
 
       db.query(sql, [
         name, language, address, whatsapp_no, phone_no, pashupalan_years, 
-        banimall_usage, animal_usage, education, profile_img, 
-        user_id, phone_no, dob
+        banimall_usage, animal_usage, education, dob, profile_img, user_id
       ], (err) => {
         if (err) return res.status(500).json({ message: "Database error", error: err });
 
-        // Fetch updated user profile
-        db.query("SELECT * FROM users_profiles WHERE user_id = ?", [user_id], (err, userProfile) => {
-          if (err) return res.status(500).json({ message: "Error fetching updated profile", error: err });
+        // Fetch updated profile with all fields
+        db.query(
+          "SELECT *, DATE_FORMAT(dob, '%Y-%m-%d') AS dob FROM users WHERE id = ?", 
+          [user_id], 
+          (err, userProfile) => {
+            if (err) return res.status(500).json({ message: "Error fetching updated profile", error: err });
 
-          console.log("Fetched updated user profile:", userProfile);
-          return res.status(200).json({
-            message: "Profile updated successfully",
-            success: true,
-            userProfile: userProfile[0]
-          });
+            return res.status(200).json({
+              message: "Profile updated successfully",
+              success: true,
+              userProfile: userProfile[0] // Return all user details
+            });
         });
       });
 
     } else {
-      // If user doesn't exist, insert a new profile
+      // 🔹 Insert new user profile
       const sql = `
-        INSERT INTO users_profiles (user_id, name, language, address, whatsapp_no, phone_no, dob, 
+        INSERT INTO users (id, name, language, address, whatsapp_no, phone_no, dob, 
           pashupalan_years, banimall_usage, animal_usage, education, profile_img)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
-      db.query(
-        sql,
-        [user_id, name, language, address, whatsapp_no, phone_no, dob, 
-          pashupalan_years, banimall_usage, animal_usage, education, profile_img],
-        (err) => {
-          if (err) return res.status(500).json({ message: "Database error", error: err });
+      db.query(sql, [
+        user_id, name, language, address, whatsapp_no, phone_no, dob, 
+        pashupalan_years, banimall_usage, animal_usage, education, profile_img
+      ], (err) => {
+        if (err) return res.status(500).json({ message: "Database error", error: err });
 
-          // Fetch the newly created user profile
-          db.query("SELECT * FROM users_profiles WHERE user_id = ?", [user_id], (err, userProfile) => {
-            if (err) return res.status(500).json({ message: "Error fetching updated profile", error: err });
+        // Fetch new profile with all fields
+        db.query(
+          "SELECT *, DATE_FORMAT(dob, '%Y-%m-%d') AS dob FROM users WHERE id = ?", 
+          [user_id], 
+          (err, userProfile) => {
+            if (err) return res.status(500).json({ message: "Error fetching new profile", error: err });
 
             return res.status(200).json({
               message: "Profile created successfully",
               success: true,
-              userProfile: userProfile[0]
+              userProfile: userProfile[0] // Return all user details
             });
-          });
-        }
-      );
+        });
+      });
     }
   });
 };
+
 
 // 📌 Fetch User Profile with Image
 export const getUserProfile = (req, res) => {
   const { user_id } = req.params;
 
-  db.query("SELECT * FROM users_profiles WHERE user_id = ?", [user_id], (err, results) => {
+  db.query("SELECT * FROM users WHERE id = ?", [user_id], (err, results) => {
     if (err) return res.status(500).json({ message: "Database error", error: err });
 
     if (results.length === 0) {
-      return res.status(404).json({ message: "User profile not found" });
+      return res.status(200).json({ message: "User profile not found", success: false });
     }
 
     res.status(200).json({ profile: results[0], success: true });
