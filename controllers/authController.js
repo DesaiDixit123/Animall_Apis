@@ -61,3 +61,23 @@ export const verifyOtp = (req, res) => {
     });
   });
 };
+
+export const logout = (req, res) => {
+  console.log("Received body:", req.body); // Debugging log
+  const { user_id } = req.body;
+  if (!user_id) return res.status(200).json({ message: "User ID is required", success: false });
+
+  db.query("SELECT * FROM users WHERE id = ?", [user_id], (err, results) => {
+    if (err) return res.status(500).json({ message: "Database error", error: err });
+    if (results.length === 0) return res.status(200).json({ message: "User not found", success: false });
+
+    db.query(
+      "UPDATE users SET otp = NULL, otp_expiry = NULL WHERE id = ?",
+      [user_id],
+      (err) => {
+        if (err) return res.status(500).json({ message: "Database error", error: err });
+        res.status(200).json({ message: "User logged out successfully", success: true });
+      }
+    );
+  });
+};
